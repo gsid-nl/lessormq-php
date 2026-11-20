@@ -1,0 +1,52 @@
+{
+    "name": "lessormq/client",
+    "description": "PHP client and worker for LessorMQ, the message queue over HTTP where the server decides and clients only claim, run, ack or fail",
+    "type": "library",
+    "license": "Apache-2.0",
+    "keywords": [
+        "message-queue",
+        "job-queue",
+        "worker",
+        "lessormq",
+        "psr-18"
+    ],
+    "require": {
+        "php": ">=8.2",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "php-http/discovery": "^1.19",
+        "psr/http-client": "^1.0",
+        "psr/http-factory": "^1.0",
+        "psr/http-message": "^1.1 || ^2.0",
+        "psr/log": "^1.1 || ^2.0 || ^3.0"
+    },
+    "require-dev": {
+        "nyholm/psr7": "^1.8",
+        "phpunit/phpunit": "^11.5",
+        "symfony/http-client": "^7.3"
+    },
+    "suggest": {
+        "ext-pcntl": "Extends leases automatically while a long handler runs, and stops the worker cleanly on SIGTERM"
+    },
+    "autoload": {
+        "psr-4": {
+            "LessorMQ\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "LessorMQ\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
+    }
+}
