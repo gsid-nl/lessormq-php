@@ -91,7 +91,7 @@ final class Worker
     {
         try {
             $lease = $this->client->claim($this->queue, new ClaimOptions(
-                $this->options->consumer ?? (gethostname() ?: null),
+                $this->options->consumer ?? self::defaultConsumer(),
                 $this->options->route,
                 $this->options->waitSeconds,
                 $this->options->leaseSeconds,
@@ -255,5 +255,16 @@ final class Worker
 
             pcntl_async_signals($previousAsync);
         };
+    }
+
+    /**
+     * The host and the process, so the workers on one host are told apart in the
+     * server's list of workers.
+     */
+    public static function defaultConsumer(): ?string
+    {
+        $host = gethostname();
+
+        return $host === false ? null : $host . ':' . getmypid();
     }
 }

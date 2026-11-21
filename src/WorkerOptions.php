@@ -11,7 +11,7 @@ namespace LessorMQ;
 final class WorkerOptions
 {
     /**
-     * @param string|null $consumer       shown to administrators; the host name by default
+     * @param string|null $consumer       shown to administrators; host:pid by default
      * @param string|null $route          the path this worker runs jobs through
      * @param int         $waitSeconds    long-poll wait per claim (at most 20)
      * @param int|null    $leaseSeconds   lease per claim; the queue's when null
