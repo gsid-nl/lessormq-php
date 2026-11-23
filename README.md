@@ -8,8 +8,9 @@ composer require lessormq/client
 ```
 
 Bring any PSR-18 HTTP client (Symfony HttpClient, Guzzle, ...); it is found
-automatically, or pass your own. Give it a timeout above 20 seconds, the longest a
-claim waits.
+automatically, or pass your own. The PSR-7 messages come with the client (nyholm/psr7),
+so `symfony/http-client` alone is enough. Give it a timeout above 20 seconds, the
+longest a claim waits.
 
 ## Publish
 
