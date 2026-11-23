@@ -77,6 +77,12 @@ final class FakeHttp implements ClientInterface
         return json_decode((string) $this->sent[$index]->getBody(), true);
     }
 
+    /** The request body as it was sent. */
+    public function raw(int $index): string
+    {
+        return (string) $this->sent[$index]->getBody();
+    }
+
     public function path(int $index): string
     {
         return $this->sent[$index]->getMethod() . ' ' . $this->sent[$index]->getUri()->getPath();

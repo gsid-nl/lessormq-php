@@ -78,6 +78,11 @@ the queue's job.
 `RateLimitedException`, `ServerException`, `TransportException`. Network errors, 5xx
 and 429 are retried (`ClientOptions::$httpRetries`) wherever repeating is safe.
 
+Many short jobs go faster in batches: `$client->claimBatch('mail', 50)` leases up to 50
+ready messages at once (each with its own lease), and `$client->ackBatch($leases)` acks
+them in one request, with an `AckOutcome` per lease. A message that fails is reported on
+its own with `fail()`.
+
 ## Tests
 
 ```sh

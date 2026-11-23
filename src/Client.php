@@ -86,20 +86,76 @@ final class Client
      */
     public function claim(string $queue, ?ClaimOptions $options = null): ?Lease
     {
-        $options ??= new ClaimOptions();
+        // A claim whose answer got lost leaves a lease that simply expires and counts as
+        // an attempt, so claims are retried like the rest.
+        $response = $this->send(
+            'POST',
+            '/v1/queues/' . rawurlencode($queue) . '/claims',
+            (object) $this->claimPayload($options ?? new ClaimOptions()),
+            true,
+        );
 
-        $payload = array_filter([
+        return $response['status'] === 204 ? null : Lease::fromArray($response['body']);
+    }
+
+    /**
+     * Lease up to maxMessages (1 to 100) ready messages of a queue at once, oldest first,
+     * each with a receipt of its own. Waits up to waitSeconds only while there is none; an
+     * empty list when nothing became available. Report each lease as usual, or ack them
+     * together with ackBatch().
+     *
+     * @return list<Lease>
+     */
+    public function claimBatch(string $queue, int $maxMessages, ?ClaimOptions $options = null): array
+    {
+        $payload = $this->claimPayload($options ?? new ClaimOptions());
+        $payload['max_messages'] = $maxMessages;
+        $response = $this->send('POST', '/v1/queues/' . rawurlencode($queue) . '/claims', $payload, true);
+
+        if ($response['status'] === 204) {
+            return [];
+        }
+
+        return array_map(
+            static fn(array $lease) => Lease::fromArray($lease),
+            array_values($response['body']['items'] ?? []),
+        );
+    }
+
+    /**
+     * Report success for up to 100 leases in one request. The outcomes are in the order
+     * of the leases; one that cannot be acked does not hold up the others.
+     *
+     * @param list<Lease> $leases
+     * @return list<AckOutcome>
+     */
+    public function ackBatch(array $leases): array
+    {
+        $payload = ['leases' => array_map(
+            static fn(Lease $lease) => ['message' => $lease->message->id, 'receipt' => $lease->receipt],
+            array_values($leases),
+        )];
+        $items = $this->send('POST', '/v1/acks', $payload, true)['body']['items'] ?? [];
+        $outcomes = [];
+
+        foreach (array_keys(array_values($leases)) as $i) {
+            $outcomes[] = AckOutcome::tryFrom((string) ($items[$i]['outcome'] ?? '')) ?? AckOutcome::NotFound;
+        }
+
+        return $outcomes;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function claimPayload(ClaimOptions $options): array
+    {
+        return array_filter([
             'consumer' => $options->consumer,
             'route' => $options->route,
             'wait_seconds' => $options->waitSeconds > 0 ? $options->waitSeconds : null,
             'lease_seconds' => $options->leaseSeconds,
         ], static fn(mixed $value) => $value !== null);
-
-        // A claim whose answer got lost leaves a lease that simply expires and counts as
-        // an attempt, so claims are retried like the rest.
-        $response = $this->send('POST', '/v1/queues/' . rawurlencode($queue) . '/claims', (object) $payload, true);
-
-        return $response['status'] === 204 ? null : Lease::fromArray($response['body']);
     }
 
     /**

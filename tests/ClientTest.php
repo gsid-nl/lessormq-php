@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LessorMQ\Tests;
 
+use LessorMQ\AckOutcome;
 use LessorMQ\ClaimOptions;
 use LessorMQ\Client;
 use LessorMQ\ClientOptions;
@@ -79,6 +80,33 @@ class ClientTest extends TestCase
         } finally {
             $this->assertCount(1, $this->http->sent);
         }
+    }
+
+    public function testClaimBatchAndAckBatch(): void
+    {
+        $second = $this->lease();
+        $second['receipt'] = 'r-2';
+        $this->http->reply(200, ['items' => [$this->lease(), $second]])
+            ->reply(200, ['items' => [
+                ['message' => 'm-1', 'outcome' => 'acked'],
+                ['message' => 'm-1', 'outcome' => 'lease_lost'],
+            ]])
+            ->reply(204);
+
+        $leases = $this->client()->claimBatch('mail', 10, new ClaimOptions(waitSeconds: 2));
+
+        $this->assertSame(['wait_seconds' => 2, 'max_messages' => 10], $this->http->body(0));
+        $this->assertSame(['r-1', 'r-2'], array_map(static fn($lease) => $lease->receipt, $leases));
+        $this->assertSame(
+            [AckOutcome::Acked, AckOutcome::LeaseLost],
+            $this->client()->ackBatch($leases),
+        );
+        $this->assertSame('POST /v1/acks', $this->http->path(1));
+        $this->assertSame(
+            ['leases' => [['message' => 'm-1', 'receipt' => 'r-1'], ['message' => 'm-1', 'receipt' => 'r-2']]],
+            $this->http->body(1),
+        );
+        $this->assertSame([], $this->client()->claimBatch('mail', 10));
     }
 
     public function testClaimReturnsNullOnEmptyAndALeaseOtherwise(): void

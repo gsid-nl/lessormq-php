@@ -46,6 +46,8 @@ final class ClientAdapter implements Adapter
                     fn() => $client->release($this->lease($args), $args['delay_seconds'] ?? 0),
                 ),
                 'fail' => $this->fail($client, $args),
+                'claim_batch' => $this->claimBatch($client, $args),
+                'ack_batch' => $this->ackBatch($client, $args),
                 default => throw new \InvalidArgumentException('Unknown call ' . $call),
             };
         } catch (ApiException $e) {
@@ -87,20 +89,68 @@ final class ClientAdapter implements Adapter
      */
     private function claim(Client $client, array $args): array
     {
-        $lease = $client->claim($args['queue'], new ClaimOptions(
-            $args['consumer'] ?? null,
-            $args['route'] ?? null,
-            $args['wait_seconds'] ?? 0,
-            $args['lease_seconds'] ?? null,
-        ));
+        $lease = $client->claim($args['queue'], $this->claimOptions($args));
 
         if ($lease === null) {
             return ['status' => 204, 'body' => null];
         }
 
+        return ['status' => 200, 'body' => $this->leaseBody($lease)];
+    }
+
+    /**
+     * @param array<string, mixed> $args
+     * @return array{status: int, body: mixed}
+     */
+    private function claimBatch(Client $client, array $args): array
+    {
+        $leases = $client->claimBatch($args['queue'], (int) $args['max_messages'], $this->claimOptions($args));
+
+        if ($leases === []) {
+            return ['status' => 204, 'body' => null];
+        }
+
+        return ['status' => 200, 'body' => ['items' => array_map($this->leaseBody(...), $leases)]];
+    }
+
+    /**
+     * @param array<string, mixed> $args
+     * @return array{status: int, body: mixed}
+     */
+    private function ackBatch(Client $client, array $args): array
+    {
+        $items = array_values($args['leases'] ?? []);
+        $outcomes = $client->ackBatch(array_map($this->lease(...), $items));
+        $body = [];
+
+        foreach ($items as $i => $item) {
+            $body[] = ['message' => $item['message'], 'outcome' => $outcomes[$i]->value];
+        }
+
+        return ['status' => 200, 'body' => ['items' => $body]];
+    }
+
+    /**
+     * @param array<string, mixed> $args
+     */
+    private function claimOptions(array $args): ClaimOptions
+    {
+        return new ClaimOptions(
+            $args['consumer'] ?? null,
+            $args['route'] ?? null,
+            $args['wait_seconds'] ?? 0,
+            $args['lease_seconds'] ?? null,
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function leaseBody(Lease $lease): array
+    {
         $message = $lease->message;
 
-        return ['status' => 200, 'body' => [
+        return [
             'receipt' => $lease->receipt,
             'lease_until' => Time::format($lease->leaseUntil()),
             'message' => [
@@ -112,7 +162,7 @@ final class ClientAdapter implements Adapter
                 'max_attempts' => $message->maxAttempts,
                 'created_at' => Time::format($message->createdAt),
             ],
-        ]];
+        ];
     }
 
     /**
