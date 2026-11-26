@@ -12,18 +12,23 @@ namespace LessorMQ;
  */
 final class ClientOptions
 {
+    public readonly string $userAgent;
+
     /**
      * @param int  $httpRetries  retries after a network error, a 5xx or a 429, for calls that
      *                           are safe to repeat (all but a publish without a dedup_key)
      * @param int  $retryDelayMs base delay between retries, times the attempt number
      * @param bool $autoDedupKey give every publish without a dedup_key one of its own, so a
      *                           retried publish can never create a second message
+     * @param ?string $userAgent the User-Agent header; null sends lessormq-php and its
+     *                           version (UserAgent::default())
      */
     public function __construct(
         public readonly int $httpRetries = 3,
         public readonly int $retryDelayMs = 100,
         public readonly bool $autoDedupKey = true,
-        public readonly string $userAgent = 'lessormq-php/1',
+        ?string $userAgent = null,
     ) {
+        $this->userAgent = $userAgent ?? UserAgent::default();
     }
 }

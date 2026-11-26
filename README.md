@@ -32,7 +32,7 @@ seconds, the longest a claim waits.
 | `httpRetries` | 3 | retries after a network error, a 5xx or a 429 |
 | `retryDelayMs` | 100 | times the attempt number |
 | `autoDedupKey` | true | a publish without a dedup key gets one, so a retry cannot create a second message |
-| `userAgent` | `lessormq-php/1` | |
+| `userAgent` | `lessormq-php/<version>` | the version Composer installed |
 
 ## Publish
 

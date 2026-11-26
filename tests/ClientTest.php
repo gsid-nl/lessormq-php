@@ -45,6 +45,9 @@ class ClientTest extends TestCase
         $request = $this->http->sent[0];
         $this->assertSame('POST /v1/queues/mail/messages', $this->http->path(0));
         $this->assertSame('Bearer lmq_test', $request->getHeaderLine('Authorization'));
+        // The version Composer installed, not a fixed one: dev-main in this checkout.
+        $this->assertMatchesRegularExpression('#^lessormq-php/\S+$#', $request->getHeaderLine('User-Agent'));
+        $this->assertNotSame('lessormq-php/unknown', $request->getHeaderLine('User-Agent'));
         $this->assertSame([
             'body' => ['to' => 'a@b.c'],
             'headers' => ['type' => 'Welcome'],
